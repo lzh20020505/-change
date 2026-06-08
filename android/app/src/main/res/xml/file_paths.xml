@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path
+        name="lite_converter_files"
+        path="LiteConverter/" />
+    <root-path
+        name="lite_converter_documents"
+        path="data/user/0/com.example.phone_file_converter/app_flutter/LiteConverter/" />
+</paths>
