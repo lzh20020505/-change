@@ -73,35 +73,114 @@
 - Android 启动图标更新为轻量矢量“文件转换”图标。
 - 原尺寸图片处理限制为 2400 万像素，降低低内存设备发生 OOM 的风险。
 
-为适配内存较小的开发电脑，Android Gradle 最大堆已设置为 3 GB。建议优先连接 Android 真机调试，不需要安装模拟器。
+为适配内存较小的开发电脑，Android Gradle 最大堆已设置为 3 GB，最多 2 个 worker。建议优先连接 Android 真机调试，不需要安装模拟器。
 
-## 本机需要安装的环境
+## 开发环境
 
-1. Flutter SDK stable 版，安装后把 `flutter\bin` 加入 `PATH`。
-2. Android Studio，用于安装 Android SDK、模拟器和调试工具。
-3. Android SDK Platform、Android SDK Command-line Tools、Android SDK Build-Tools、Android SDK Platform-Tools。
-4. Git for Windows。
-5. VS Code 或 Android Studio Flutter 插件，二选一即可。
-6. 真机调试时需要开启 Android 手机的开发者选项和 USB 调试，Windows 可能还需要手机厂商 USB 驱动。
+这次开发使用的是 Windows + Flutter + Android 真机调试。为了少占 C 盘，环境和构建缓存都放在 D 盘。
 
-安装后建议运行：
+推荐目录：
+
+```text
+D:\Flutter_Android_Huanjing
+  flutter
+  android_sdk
+  jdk17_full
+  gradle_home
+  downloads
+  scripts
+
+D:\QingZhuan_GouJian_HuanCun
+  Gradle
+  Pub
+  Temp
+  Flutter_Config
+  ShouDong_XiaZai
+```
+
+本项目提供了环境脚本：
+
+- `tools/install_flutter_android_env.ps1`：从零安装 Flutter、Android command-line tools、JDK 17，并安装 Android SDK 包。
+- `tools/use_flutter_android_env.ps1`：在当前 PowerShell 会话中加载已经安装好的环境变量。
+- `tools/build_qingzhuan_android.ps1`：加载 D 盘环境和缓存，执行 `pub get`、`analyze`、`test`、debug APK 构建和 release APK 构建。
+- `tools/shoudong_xiazai_shuoming.md`：联网下载失败时，手动放置 FFmpeg 相关 AAR/JAR 的说明。
+
+脚本中使用的主要版本：
+
+- Flutter SDK：`3.44.0` stable
+- Dart SDK：随 Flutter SDK 提供
+- Android SDK Platform：`android-36`
+- Android Build Tools：`36.0.0`
+- Android command-line tools：`14742923`
+- JDK：Microsoft JDK `17.0.19`
+- Gradle：使用项目 `android/gradle/wrapper/gradle-wrapper.properties` 指定的 wrapper
+- Android Gradle Plugin：使用项目 `android/build.gradle.kts` 中的版本，不升级到 AGP 9
+
+Gradle 约束写在 `android/gradle.properties`：
+
+```properties
+org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError
+org.gradle.workers.max=2
+kotlin.incremental=false
+kotlin.compiler.execution.strategy=in-process
+```
+
+## 重新下载项目
+
+以后如果删掉本地目录，可以从 GitHub 重新下载：
 
 ```powershell
-flutter doctor
-flutter doctor --android-licenses
+cd D:\Desktop
+git clone https://github.com/lzh20020505/-change.git phone
+cd D:\Desktop\phone
+```
+
+如果 D 盘环境还在，只需要加载环境并构建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\use_flutter_android_env.ps1
 flutter pub get
+flutter analyze
+flutter test
 ```
 
-官方参考：
-
-- [Flutter Windows + Android 安装文档](https://docs.flutter.dev/get-started/install/windows/mobile)
-- [Flutter Android 平台配置](https://docs.flutter.dev/platform-integration/android/setup)
-
-当前目录是在没有 Flutter SDK 的环境里创建的。安装 Flutter 后，如果需要生成 Android 原生平台目录，请在项目根目录执行：
+如果 D 盘环境也删掉了，先重新安装环境：
 
 ```powershell
-flutter create --platforms=android .
+powershell -ExecutionPolicy Bypass -File .\tools\install_flutter_android_env.ps1
 ```
+
+构建 APK 推荐直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build_qingzhuan_android.ps1
+```
+
+构建产物位置：
+
+```text
+build/app/outputs/flutter-apk/
+  app-armeabi-v7a-release.apk
+  app-arm64-v8a-release.apk
+```
+
+日常真机安装优先使用 `app-arm64-v8a-release.apk`。Debug APK 只用于开发调试，Release APK 更接近日常安装体积和权限状态。
+
+## 手动下载依赖
+
+正常情况下 Gradle 会从 Maven Central 自动下载 FFmpeg 相关依赖。如果下载失败，按 `tools/shoudong_xiazai_shuoming.md` 手动下载下面 3 个文件，并放入：
+
+```text
+D:\QingZhuan_GouJian_HuanCun\ShouDong_XiaZai
+```
+
+文件名必须保持不变：
+
+- `ffmpeg-kit-audio-6.0.1.aar`
+- `smart-exception-java-0.2.1.jar`
+- `smart-exception-common-0.2.1.jar`
+
+`android/app/build.gradle.kts` 会优先检查这 3 个本地文件；全部存在时使用手动文件，否则使用 Maven Central 坐标。
 
 ## Flutter 依赖
 
@@ -112,13 +191,7 @@ flutter create --platforms=android .
 - `permission_handler`：权限能力扩展点
 - `cupertino_icons`：基础图标
 
-后续实现本地转换时，可按模块逐步引入：
-
-- 图片压缩：`flutter_image_compress` 或基于 Dart `image` 包处理
-- 图片转 PDF：`pdf`
-- 打开/分享文件：`open_filex`、`share_plus`
-- 转换记录：`sqflite`、`drift` 或 `isar`
-- 视频提取音频：FFmpeg 相关 Flutter 插件，需重点确认 Android 兼容性和 LGPL/GPL 许可
+当前没有引入数据库、图片处理大插件、打开分享插件或额外状态管理框架；图片、PDF、文件打开分享和视频提取音频主要通过 Android 原生代码实现。
 
 ## 项目结构
 
